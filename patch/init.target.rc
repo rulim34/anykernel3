@@ -1,0 +1,122 @@
+service spectrum /vendor/bin/sh /vendor/etc/init/hw/init.spectrum.sh
+	class late_start
+	user root
+	disabled
+	oneshot
+	
+on late-fs
+	# boot time fs tune
+	write /sys/block/sda/queue/iosched/slice_idle 0
+	write /sys/block/sda/queue/read_ahead_kb 2048
+	write /sys/block/sda/queue/nr_requests 256
+	write /sys/block/dm-0/queue/read_ahead_kb 2048
+	write /sys/block/dm-1/queue/read_ahead_kb 2048
+
+on post-fs-data
+	setprop ro.vendor.qti.config.zram true
+	write /proc/sys/vm/page-cluster 0
+	write /sys/block/zram0/disksize 1G
+
+	    
+on property:init.svc.qcom-post-boot=stopped
+	write /sys/block/mmcblk1/queue/add_random 0
+	write /sys/block/mmcblk0/queue/add_random 0
+	chmod 0644 /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 1401000
+	chmod 0644 /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor conservative
+	write /sys/class/kgsl/kgsl-3d0/max_gpuclk 598000000
+	write /sys/class/kgsl/kgsl-3d0/devfreq/governor msm-adreno-tz
+	write /sys/module/sync/parameters/fsync_enabled Y
+	write /sys/module/cpu_input_boost/parameters/input_boost_freq 1094400
+	write /sys/module/lowmemorykiller/parameters/enable_adaptive_lmk 1
+	write /sys/block/mmcblk0/queue/scheduler anxiety
+    
+on property:sys.boot_completed=1
+	# according to Qcom this legacy value improves first launch latencies
+	# stock value is 512k
+	setprop dalvik.vm.heapminfree 2m
+
+	# I/O
+	write /sys/block/sda/queue/read_ahead_kb 128
+	write /sys/block/sda/queue/nr_requests 128
+	write /sys/block/dm-0/queue/read_ahead_kb 128
+	write /sys/block/dm-1/queue/read_ahead_kb 128
+
+	setprop debug.sqlite.journalmode OFF
+	setprop debug.sqlite.syncmode OFF
+	
+	# Enable Spectrum support
+	setprop spectrum.support 1
+	# Allows FKM to know this feature is supported
+	setprop fku.profiles 1	
+	# Set default profile on first boot
+	start spectrum
+	# Add kernel name
+	setprop persist.spectrum.kernel Ardadedali+
+
+# Kernel Profiles
+# Balance (default profile)
+on property:persist.spectrum.profile=0
+	chmod 0644 /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 1401000
+	chmod 0644 /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor conservative
+	write /sys/class/kgsl/kgsl-3d0/max_gpuclk 598000000
+	write /sys/class/kgsl/kgsl-3d0/devfreq/governor msm-adreno-tz
+	write /sys/module/sync/parameters/fsync_enabled Y
+	write /sys/module/cpu_input_boost/parameters/input_boost_freq 1094400
+	write /sys/module/lowmemorykiller/parameters/enable_adaptive_lmk 1
+	write /sys/block/mmcblk0/queue/scheduler anxiety
+    
+# Performance
+on property:persist.spectrum.profile=1
+	chmod 0644 /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 1651200
+	chmod 0644 /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor performance
+	write /sys/class/kgsl/kgsl-3d0/max_gpuclk 650000000
+	write /sys/class/kgsl/kgsl-3d0/devfreq/governor performance
+	write /sys/module/sync/parameters/fsync_enabled N
+	write /sys/module/cpu_input_boost/parameters/input_boost_freq 0
+	write /sys/module/lowmemorykiller/parameters/enable_adaptive_lmk 0
+	write /sys/block/mmcblk0/queue/scheduler deadline
+
+# Battery
+on property:persist.spectrum.profile=2
+	chmod 0644 /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 1248000
+	chmod 0644 /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor conservative
+	write /sys/class/kgsl/kgsl-3d0/max_gpuclk 484800000
+	write /sys/class/kgsl/kgsl-3d0/devfreq/governor msm-adreno-tz
+	write /sys/module/sync/parameters/fsync_enabled Y
+	write /sys/module/cpu_input_boost/parameters/input_boost_freq 0
+	write /sys/module/lowmemorykiller/parameters/enable_adaptive_lmk 1
+	write /sys/block/mmcblk0/queue/scheduler noop
+
+# Gaming
+on property:persist.spectrum.profile=3
+	chmod 0644 /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 1651200
+	chmod 0644 /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+	write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor interactive
+	write /sys/class/kgsl/kgsl-3d0/max_gpuclk 650000000
+	write /sys/class/kgsl/kgsl-3d0/devfreq/governor msm-adreno-tz
+	write /sys/module/sync/parameters/fsync_enabled N
+	write /sys/module/cpu_input_boost/parameters/input_boost_freq 1094400
+	write /sys/module/lowmemorykiller/parameters/enable_adaptive_lmk 0
+	write /sys/block/mmcblk0/queue/scheduler deadline
+	
+# FKM Profiles
+# Power saving profile
+on property:fku.perf.profile=0
+	setprop persist.spectrum.profile 2
+
+# Balance (FKM default)
+on property:fku.perf.profile=1
+	setprop persist.spectrum.profile 0
+
+# Performance
+on property:fku.perf.profile=2
+	setprop persist.spectrum.profile 1
