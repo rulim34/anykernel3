@@ -33,20 +33,15 @@ chown -R root:root $ramdisk/*;
 
 ## AnyKernel install
 
-# Treble Check
-is_treble=$(file_getprop /system/build.prop "ro.treble.enabled");
-if [ ! "$is_treble" -o "$is_treble" == "false" ]; then
+# ROM Check
+rom_version="$(file_getprop /system/build.prop "org.pixelexperience.version")";
+if [ ! "$rom_version" = "10" ]; then
   ui_print " ";
-  ui_print "Non-Treble support was dropped with Release 9";
+  ui_print "This kernel was built specifically for PixelExperience 10";
   exit 1;
 fi;
 
 # Begin vendor changes
-
-# Get Android version
-android_version="$(file_getprop /system/build.prop "ro.build.version.release")";
-
-if [ "$android_version" = "10" ]; then
   mount -o rw,remount -t auto /vendor >/dev/null;
 
   cp -rf /tmp/anykernel/patch/init.spectrum.sh /vendor/etc/init/hw/;
@@ -58,20 +53,13 @@ if [ "$android_version" = "10" ]; then
   backup_file /vendor/etc/init/hw/init.target.rc;
 
 # Add init configuration
-  append_file /vendor/etc/init/hw/init.target.rc "Ethereal" init.target.rc
-fi;
+  append_file /vendor/etc/init/hw/init.target.rc "Ardadedali+" init.target.rc
 
 rm /tmp/anykernel/patch/*;
 
 # End vendor changes
 
 dump_boot;
-
-# Begin ramdisk changes
-if [ "$android_version" != "10" ]; then
-  insert_line init.rc "import /init.ethereal.rc" after "import /init.\${ro.zygote}.rc" "import /init.ethereal.rc";
-fi
-# End ramdisk changes
 
 write_boot;
 ## End install
